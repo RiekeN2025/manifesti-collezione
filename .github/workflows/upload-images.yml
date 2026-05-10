@@ -1,51 +1,46 @@
-name: Upload Poster Images to IONOS
+name: Upload Poster Images to IONOS v2
 
 on:
-  workflow_dispatch:  # Manuell starten per Klick auf GitHub
+  workflow_dispatch:
 
 jobs:
   upload:
     runs-on: ubuntu-latest
-    timeout-minutes: 120  # 2 Stunden max (reicht für 8.000 Bilder)
+    timeout-minutes: 180
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          lfs: false
 
       - name: Install lftp
         run: sudo apt-get install -y lftp
 
-      - name: Upload all Box folders to IONOS
+      - name: Upload each Box folder individually
         env:
           SFTP_HOST: access-5020418604.webspace-host.com
           SFTP_USER: su844643
           SFTP_PASS: ${{ secrets.SFTP_PASSWORD }}
           SFTP_PORT: 22
         run: |
-          echo "Starting upload of all Box folders..."
+          # Upload each Box folder one by one to handle spaces in names
+          for dir in Box\ X Box\ n1 Box\ n2 Box\ n3 Box\ n4 Box\ n5 Box\ n6 Box\ n7 Box\ n8 Box\ n9 Box\ n10 Box\ n11 Box\ n12 Box\ n13 Box\ n14 Box\ n15 Box\ n16 Box\ n17 Box\ n18 Box\ n19 Box\ n20 Box\ n21 Box\ n22 Box\ n23 Box\ n24 Box\ n25 Box\ n26 Box\ n27 Box\ n28 Box\ n29 Box\ n30; do
+            if [ -d "$dir" ]; then
+              echo "📦 Uploading: $dir"
+              lftp -c "
+                set sftp:auto-confirm yes;
+                set net:timeout 60;
+                set net:max-retries 5;
+                set net:reconnect-interval-base 5;
+                open sftp://$SFTP_USER:$SFTP_PASS@$SFTP_HOST:$SFTP_PORT;
+                mirror --reverse --verbose --parallel=8 \
+                  --no-perms \
+                  \"$dir\" \"/public/wp-content/uploads/posters/$dir\";
+                bye
+              "
+              echo "✅ Done: $dir"
+            else
+              echo "⚠ Skipping (not found): $dir"
+            fi
+          done
 
-          lftp -c "
-            set sftp:auto-confirm yes;
-            set net:timeout 30;
-            set net:max-retries 5;
-            set net:reconnect-interval-base 5;
-            open sftp://$SFTP_USER:$SFTP_PASS@$SFTP_HOST:$SFTP_PORT;
-            mirror --reverse --verbose --parallel=4 \
-              --include-glob 'Box*/' \
-              --exclude '.git/' \
-              --exclude '.github/' \
-              . /public/wp-content/uploads/posters/;
-            bye
-          "
-
-          echo "✅ Upload complete!"
-
-      - name: Summary
-        run: |
-          echo "All poster images uploaded to:"
-          echo "  /public/wp-content/uploads/posters/"
-          echo ""
-          echo "Image base URL:"
-          echo "  https://crazy-posterdeals.com/wp-content/uploads/posters/Box%20n1/Filmtitel.JPG"
+          echo "🎉 All uploads complete!"
